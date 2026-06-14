@@ -7,6 +7,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -26,7 +27,7 @@ public class RadioBrowserService {
     @Value("${radiobrowser.user-agent:OpenSoundTouch/0.1}")
     private String userAgent;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate = new RestTemplate(new JdkClientHttpRequestFactory());
 
     public List<Map<String, Object>> searchStations(String name, String country, String language, int limit) {
         URI uri = UriComponentsBuilder.fromHttpUrl(baseUrl)
