@@ -7,7 +7,18 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Mobile</string>
+	<string>OpenSoundTouch</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>OpenSoundTouch needs local-network access to discover and control Bose SoundTouch speakers on your Wi-Fi.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_soundtouch._tcp</string>
+	</array>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
