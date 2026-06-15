@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/speaker.dart';
+import '../state/favorites_store.dart';
 import '../state/speakers_store.dart';
 import 'speaker_detail_screen.dart';
 
@@ -16,7 +17,9 @@ class _SpeakersScreenState extends State<SpeakersScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final favorites = context.read<FavoritesStore>();
       final store = context.read<SpeakersStore>();
+      await favorites.load();
       await store.load();
       if (store.speakers.isEmpty) {
         await store.discover();

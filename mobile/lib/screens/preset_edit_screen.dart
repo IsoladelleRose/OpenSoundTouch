@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../config.dart';
 import '../models/radio_station.dart';
+import '../models/speaker.dart';
 import '../services/radio_search_service.dart';
 import '../services/soundtouch_client.dart';
+import '../state/favorites_store.dart';
 
 class PresetEditScreen extends StatefulWidget {
   final SoundTouchClient client;
+  final Speaker speaker;
   final int presetId;
   const PresetEditScreen({
     super.key,
     required this.client,
+    required this.speaker,
     required this.presetId,
   });
 
@@ -44,11 +49,14 @@ class _PresetEditScreenState extends State<PresetEditScreen> {
   Future<void> _assign(RadioStation station) async {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
+    final favorites = context.read<FavoritesStore>();
     try {
-      await widget.client.assignStationToPreset(station, widget.presetId);
+      // Save the app-side preset, then start playing it right away via DLNA.
+      await favorites.assign(widget.speaker.host, widget.presetId, station);
+      await widget.client.playRadioStation(station);
       if (!mounted) return;
       messenger.showSnackBar(SnackBar(
-          content: Text('Assigned "${station.name}" to preset ${widget.presetId}')));
+          content: Text('Preset ${widget.presetId}: "${station.name}"')));
       navigator.pop();
     } catch (e) {
       if (!mounted) return;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'screens/speakers_screen.dart';
+import 'state/favorites_store.dart';
 import 'state/speakers_store.dart';
 
 void main() {
@@ -13,8 +14,11 @@ class OpenSoundTouchApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => SpeakersStore(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => SpeakersStore()),
+        ChangeNotifierProvider(create: (_) => FavoritesStore()),
+      ],
       child: MaterialApp(
         title: 'OpenSoundTouch',
         theme: ThemeData(

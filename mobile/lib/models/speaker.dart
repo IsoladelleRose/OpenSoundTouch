@@ -14,6 +14,11 @@ class Speaker {
   String get baseUrl => 'http://$host:$port';
   String get webSocketUrl => 'ws://$host:8080';
 
+  /// SoundTouch's UPnP/DLNA AVTransport control endpoint (fixed port 8091).
+  /// Used to play arbitrary stream URLs, since the cloud-backed /select path
+  /// (TUNEIN / LOCAL_INTERNET_RADIO) no longer produces audio.
+  String get dlnaControlUrl => 'http://$host:8091/AVTransport/Control';
+
   Map<String, dynamic> toJson() => {
         'name': name,
         'host': host,

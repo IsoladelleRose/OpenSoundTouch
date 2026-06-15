@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/now_playing.dart';
-import '../models/preset.dart';
+import '../models/radio_station.dart';
 import '../models/speaker.dart';
 import '../services/soundtouch_client.dart';
+import '../state/favorites_store.dart';
 import 'preset_edit_screen.dart';
 
 class SpeakerDetailScreen extends StatefulWidget {
@@ -17,7 +19,6 @@ class SpeakerDetailScreen extends StatefulWidget {
 class _SpeakerDetailScreenState extends State<SpeakerDetailScreen> {
   late final SoundTouchClient _client;
   NowPlaying? _np;
-  List<Preset> _presets = const [];
   int _volume = 0;
   bool _loading = true;
   String? _error;
@@ -42,14 +43,12 @@ class _SpeakerDetailScreenState extends State<SpeakerDetailScreen> {
     try {
       final results = await Future.wait([
         _client.nowPlaying(),
-        _client.presets(),
         _client.volume(),
       ]);
       if (!mounted) return;
       setState(() {
         _np = results[0] as NowPlaying;
-        _presets = results[1] as List<Preset>;
-        _volume = results[2] as int;
+        _volume = results[1] as int;
         _loading = false;
         _error = null;
       });
@@ -114,19 +113,29 @@ class _SpeakerDetailScreenState extends State<SpeakerDetailScreen> {
                   const Text('Presets',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   const SizedBox(height: 8),
-                  _PresetsGrid(
-                    presets: _presets,
-                    onTap: (id) => _guarded(() => _client.selectPreset(id)),
-                    onEdit: (id) async {
-                      await Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => PresetEditScreen(
-                          client: _client,
-                          presetId: id,
-                        ),
-                      ));
-                      _refresh();
-                    },
-                  ),
+                  Builder(builder: (context) {
+                    final favorites = context.watch<FavoritesStore>();
+                    final slots = favorites.slotsFor(widget.speaker.host);
+                    return _PresetsGrid(
+                      stations: slots,
+                      onTap: (slot) {
+                        final station = slots[slot];
+                        if (station != null) {
+                          _guarded(() => _client.playRadioStation(station));
+                        }
+                      },
+                      onEdit: (slot) async {
+                        await Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => PresetEditScreen(
+                            client: _client,
+                            speaker: widget.speaker,
+                            presetId: slot,
+                          ),
+                        ));
+                        _refresh();
+                      },
+                    );
+                  }),
                 ],
               ),
             ),
@@ -241,19 +250,17 @@ class _VolumeSlider extends StatelessWidget {
 }
 
 class _PresetsGrid extends StatelessWidget {
-  final List<Preset> presets;
-  final void Function(int presetId) onTap;
-  final void Function(int presetId) onEdit;
+  final Map<int, RadioStation> stations;
+  final void Function(int slot) onTap;
+  final void Function(int slot) onEdit;
   const _PresetsGrid({
-    required this.presets,
+    required this.stations,
     required this.onTap,
     required this.onEdit,
   });
 
   @override
   Widget build(BuildContext context) {
-    final byId = {for (final p in presets) p.id: p};
-    final slots = List.generate(6, (i) => byId[i + 1] ?? Preset(id: i + 1));
     return GridView.count(
       crossAxisCount: 3,
       shrinkWrap: true,
@@ -261,25 +268,38 @@ class _PresetsGrid extends StatelessWidget {
       mainAxisSpacing: 8,
       crossAxisSpacing: 8,
       childAspectRatio: 1.6,
-      children: slots
-          .map((p) => _PresetTile(preset: p, onTap: () => onTap(p.id), onEdit: () => onEdit(p.id)))
-          .toList(),
+      children: List.generate(FavoritesStore.slotCount, (i) {
+        final slot = i + 1;
+        return _PresetTile(
+          slot: slot,
+          station: stations[slot],
+          onTap: () => onTap(slot),
+          onEdit: () => onEdit(slot),
+        );
+      }),
     );
   }
 }
 
 class _PresetTile extends StatelessWidget {
-  final Preset preset;
+  final int slot;
+  final RadioStation? station;
   final VoidCallback onTap;
   final VoidCallback onEdit;
-  const _PresetTile({required this.preset, required this.onTap, required this.onEdit});
+  const _PresetTile({
+    required this.slot,
+    required this.station,
+    required this.onTap,
+    required this.onEdit,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final isEmpty = station == null;
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: preset.isEmpty ? onEdit : onTap,
+        onTap: isEmpty ? onEdit : onTap,
         onLongPress: onEdit,
         child: Stack(children: [
           Padding(
@@ -287,19 +307,19 @@ class _PresetTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${preset.id}',
+                Text('$slot',
                     style: const TextStyle(fontSize: 12, color: Colors.grey)),
                 const SizedBox(height: 4),
                 Expanded(
                   child: Center(
                     child: Text(
-                      preset.isEmpty ? '— empty —' : (preset.itemName ?? ''),
+                      isEmpty ? '— empty —' : station!.name,
                       textAlign: TextAlign.center,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontWeight: preset.isEmpty ? FontWeight.normal : FontWeight.bold,
-                        color: preset.isEmpty ? Colors.grey : null,
+                        fontWeight: isEmpty ? FontWeight.normal : FontWeight.bold,
+                        color: isEmpty ? Colors.grey : null,
                       ),
                     ),
                   ),

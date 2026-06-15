@@ -32,4 +32,16 @@ class RadioStation {
         bitrate: json['bitrate'] is int ? json['bitrate'] as int : null,
         codec: json['codec'] as String?,
       );
+
+  Map<String, dynamic> toJson() => {
+        'stationuuid': stationUuid,
+        'name': name,
+        'url': url,
+        'favicon': favicon,
+        'country': country,
+        'language': language,
+        'tags': tags,
+        'bitrate': bitrate,
+        'codec': codec,
+      };
 }

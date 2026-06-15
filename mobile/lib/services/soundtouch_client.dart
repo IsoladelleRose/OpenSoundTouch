@@ -139,20 +139,46 @@ class SoundTouchClient {
     return _key('PRESET_$presetId', hold: const Duration(seconds: 3));
   }
 
-  /// Plays an internet-radio station via /select with a ContentItem.
+  // UPnP/DLNA AVTransport service on the SoundTouch (port 8091). Bose's cloud
+  // is gone, so the documented /select internet-radio path no longer plays
+  // audio; pushing the stream URL to the renderer's AVTransport is the only
+  // local way to play arbitrary stations. The renderer follows HTTP redirects
+  // itself, so radio-browser URLs work as-is.
+  static const String _avTransport =
+      'urn:schemas-upnp-org:service:AVTransport:1';
+
+  /// Plays an internet-radio station by pushing its stream URL to the speaker's
+  /// UPnP/DLNA AVTransport renderer (SetAVTransportURI + Play).
   Future<void> playRadioStation(RadioStation station) async {
-    final escapedName = _escapeXml(station.name);
-    final escapedUrl = _escapeXml(station.url);
-    final escapedArt =
-        station.favicon == null ? '' : _escapeXml(station.favicon!);
-    final body = '<ContentItem source="INTERNET_RADIO" '
-        'location="$escapedUrl" '
-        'sourceAccount="" '
-        'isPresetable="true">'
-        '<itemName>$escapedName</itemName>'
-        '${station.favicon == null ? '' : '<containerArt>$escapedArt</containerArt>'}'
-        '</ContentItem>';
-    await _post('/select', body);
+    await _soapAvTransport(
+      'SetAVTransportURI',
+      '<InstanceID>0</InstanceID>'
+      '<CurrentURI>${_escapeXml(station.url)}</CurrentURI>'
+      '<CurrentURIMetaData></CurrentURIMetaData>',
+    );
+    await _soapAvTransport(
+      'Play',
+      '<InstanceID>0</InstanceID><Speed>1</Speed>',
+    );
+  }
+
+  Future<void> _soapAvTransport(String action, String args) async {
+    final body = '<?xml version="1.0" encoding="utf-8"?>'
+        '<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" '
+        's:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">'
+        '<s:Body><u:$action xmlns:u="$_avTransport">$args</u:$action></s:Body>'
+        '</s:Envelope>';
+    final response = await _http
+        .post(
+          Uri.parse(speaker.dlnaControlUrl),
+          headers: {
+            'Content-Type': 'text/xml; charset="utf-8"',
+            'SOAPAction': '"$_avTransport#$action"',
+          },
+          body: body,
+        )
+        .timeout(const Duration(seconds: 6));
+    _ensureOk(response);
   }
 
   /// One-shot: play this station, wait briefly, then long-press the preset key
